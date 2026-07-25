@@ -1,38 +1,113 @@
 # streaming-partial
 
-A server-rendered gsx app with Vite assets and live reload.
+A page that streams its layout, flushes it, then fills the panels **out of
+document order**.
 
-## Prerequisites
+![The three panels filling out of order: the middle panel arrives first, while the panel above it is still a skeleton](docs/demo.gif)
 
-- Go 1.24+
-- Node.js 18+ with npm
+## What it shows
 
-## Setup
+Plain HTTP streaming can only append in document order. Processing-instruction
+markers change that: a `<template for="x">` patches the region named `x`
+*wherever that region already sits in the document*, so a later byte can fill an
+earlier hole.
+
+The panel latencies are deliberately inverted against the page order:
+
+| panel         | position | latency |
+| ------------- | -------- | ------- |
+| Revenue       | first    | 2400 ms |
+| Recent orders | second   | 400 ms  |
+| Top products  | third    | 1200 ms |
+
+Watch the middle panel fill while the one above it is still a skeleton. Each
+panel is stamped with its arrival order and the measured milliseconds, so the
+mismatch between page position and arrival order is visible at a glance. Those
+numbers come from the server, not from the markup.
+
+Three gsx features combine here:
+
+- **processing instructions** — `<?start name="revenue"> … <?end>` marks a region
+  the server can patch later
+- **the streaming-flush pattern** — a `<Flush/>` node pushes bytes mid-render, so
+  the browser paints the skeletons immediately
+- **[gsxui](https://github.com/gsxhq/gsxui)** — the cards, table, badge and
+  skeletons, vendored with `gsxui add`
+
+## Run it
 
 ```sh
-go get -tool github.com/gsxhq/gsx/cmd/gsx@latest
-go mod tidy
-npm install
+npm ci && npm run build     # required, see below
+go tool gsx generate
+go run .
 ```
 
-## Develop
+Then open <http://localhost:7777>. Set `GO_PORT` to use a different port.
+
+**Both steps before `go run .` are mandatory.** `npm run build` produces
+`dist/.vite/manifest.json`; without it the server exits immediately with
+`vite: read manifest … file does not exist` rather than serving an unstyled page.
+`gsx generate` writes the `.x.go` files, which are not committed.
+
+To work on it instead:
 
 ```sh
 npm run dev
 ```
 
-Open the URL printed in the terminal. Edit `app.gsx` and save to rebuild the Go
-server and reload the browser.
+That runs `gsx dev` with hot reload. It serves the app from the **Vite** port it
+prints, not `GO_PORT` — requesting the Go port directly means Vite's assets never
+load.
 
-Generated `*.x.go` files are ignored. Do not edit or commit them.
+`/scaffold` serves the stock `gsx init` landing page, kept for reference.
 
-## Production build
+## Browser support
 
-```sh
-npm run build
-go tool gsx generate
-go build -o app
-./app
-```
+Declarative partial updates are experimental. Chrome 148 behind
+`chrome://flags/#enable-experimental-web-platform-features` uses the native
+implementation.
 
-The server listens on `:7777`, embeds the built assets, and runs without Vite.
+Every other browser gets
+[`template-for-polyfill`](https://github.com/GoogleChromeLabs/template-for-polyfill),
+vendored in `public/`. The same server bytes drive both paths — the server never
+negotiates — because a browser without native processing-instruction parsing
+delivers `<?marker name="x">` as a comment whose data is `?marker name="x"`, and
+the polyfill reads either form.
+
+## How it works
+
+`views/page.gsx` renders the document shell with three `<?start name=…>` regions,
+each holding a `ui.Skeleton`. `<Flush/>` then pushes those bytes to the browser.
+
+`main.go`'s `stream()` node blocks after that. It starts one goroutine per panel,
+and as each result arrives it renders a `<template for="…">` carrying the real
+content and flushes again. The response stays open until the last panel lands, so
+the document closes only once every region has been patched.
+
+Latencies live on the `server` struct rather than in a package constant, so tests
+inject fast ones instead of sleeping for 2.4 seconds.
+
+## Files
+
+| path                | what it is                                              |
+| ------------------- | ------------------------------------------------------- |
+| `views/page.gsx`    | document shell and the three marker regions             |
+| `views/panels.gsx`  | panel shell, real panel content, arrival badge          |
+| `views/patch.gsx`   | the `<template for=…>` wrapper                          |
+| `main.go`           | server, the streaming node, the inverted latencies      |
+| `data.go`           | the panel data                                          |
+| `flush.go`          | the `<Flush/>` node                                     |
+| `ui/`               | gsxui components, vendored — they are yours to edit     |
+
+## Caveats
+
+`dist/` is not committed, so a clone must run `npm run build`. An earlier version
+did commit it, and the artifact drifted out of parity twice in one day because a
+live `gsx dev` session edits sources continuously. A one-line prerequisite is
+more honest than a stale binary.
+
+In dev the page requests its stylesheets directly (`?direct`) as well as through
+Vite's module graph. Vite normally injects CSS via a deferred module script, and a
+deferred script cannot run until HTML parsing completes — which, on a response
+held open for 2.4 seconds, means no styles until the very end. Production emits a
+real `<link rel="stylesheet">` and needs none of this.

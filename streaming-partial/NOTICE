@@ -1,0 +1,13 @@
+This example vendors one third-party file.
+
+public/template-for-polyfill.js
+  template-for-polyfill 0.1.1
+  Copyright Google LLC
+  Licensed under the Apache License, Version 2.0
+  https://github.com/GoogleChromeLabs/template-for-polyfill
+
+  Vendored rather than installed from npm so the example needs no JavaScript
+  package step to run. It walks SHOW_COMMENT | SHOW_PROCESSING_INSTRUCTION,
+  because a browser without native processing-instruction parsing delivers
+  `<?marker name="x">` as a bogus comment whose data is `?marker name="x"` —
+  so the same server bytes work on both the native and polyfilled paths.
