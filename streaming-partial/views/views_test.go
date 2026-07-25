@@ -90,3 +90,76 @@ func TestPanelBodyEmptyRowsFallsThroughToValueShape(t *testing.T) {
 		t.Errorf("value+badge shape missing in %q", got)
 	}
 }
+
+// PanelBody's waterfall bar renders BarPct as a "width:N%" style, via the
+// explicit CSS attr literal — not silently rejected to gsx's ZgotmplZ CSS
+// sanitizer placeholder, which is what a naive string-built style would hit.
+func TestPanelBodyBarWidthReflectsBarPct(t *testing.T) {
+	got := render(t, PanelBody(Panel{Value: "$0", Note: "flat", BarPct: 42}))
+	if strings.Contains(got, "ZgotmplZ") {
+		t.Fatalf("bar style was rejected by the CSS sanitizer in %q", got)
+	}
+	if !strings.Contains(got, `style="width:42%"`) {
+		t.Errorf(`missing style="width:42%%" in %q`, got)
+	}
+}
+
+func TestOrdinalSuffix(t *testing.T) {
+	cases := map[int]string{
+		1: "1st", 2: "2nd", 3: "3rd", 4: "4th",
+		11: "11th", 12: "12th", 13: "13th",
+		21: "21st", 22: "22nd", 23: "23rd", 24: "24th",
+		101: "101st", 111: "111th", 112: "112th", 113: "113th",
+	}
+	for n, want := range cases {
+		if got := ordinalSuffix(n); got != want {
+			t.Errorf("ordinalSuffix(%d) = %q, want %q", n, got, want)
+		}
+	}
+}
+
+func TestCircledNumeral(t *testing.T) {
+	cases := map[int]string{1: "①", 2: "②", 3: "③"}
+	for n, want := range cases {
+		if got := circledNumeral(n); got != want {
+			t.Errorf("circledNumeral(%d) = %q, want %q", n, got, want)
+		}
+	}
+}
+
+func TestDocumentPositionMatchesPanelNamesOrder(t *testing.T) {
+	for i, name := range PanelNames() {
+		if got := documentPosition(name); got != i+1 {
+			t.Errorf("documentPosition(%q) = %d, want %d", name, got, i+1)
+		}
+	}
+}
+
+func TestDocumentPositionPanicsOnUnknownName(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Error("documentPosition did not panic on an unknown name")
+		}
+	}()
+	documentPosition("no-such-panel")
+}
+
+// PanelShell's header now carries a second marker region, name+"-badge",
+// holding a pending badge until the streaming server patches it — pin both
+// the region and the pending copy, alongside the existing body region.
+func TestPanelShellOpensAndClosesTheBadgeMarkerRegion(t *testing.T) {
+	got := render(t, PanelShell("orders", "Recent orders"))
+	if !strings.Contains(got, `<?start name="orders-badge">`) {
+		t.Errorf("missing badge region open in:\n%s", got)
+	}
+	if !strings.Contains(got, "pending") {
+		t.Errorf("missing pending copy in:\n%s", got)
+	}
+}
+
+func TestPanelBadgeShowsOrdinalAndElapsed(t *testing.T) {
+	got := render(t, PanelBadge(Panel{Ordinal: 1, ElapsedMS: 400}))
+	if !strings.Contains(got, "1st · 400ms") {
+		t.Errorf("missing ordinal/elapsed text in %q", got)
+	}
+}

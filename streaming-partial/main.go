@@ -35,11 +35,44 @@ func newServer() *server {
 	}}
 }
 
-// stream emits one <template for="…"> per panel, in completion order, flushing
-// after each so the browser applies it immediately. It blocks until every panel
-// has been sent, which is what keeps the response open.
+// maxLatency returns the slowest panel's declared latency — the denominator
+// for each panel's waterfall-bar BarPct. It is the map's own known ceiling
+// (2400ms today, revenue's), not a value tracked from measured arrivals.
+func (s *server) maxLatency() time.Duration {
+	var max time.Duration
+	for _, d := range s.latency {
+		if d > max {
+			max = d
+		}
+	}
+	return max
+}
+
+// barPct returns elapsed as a percentage of max, clamped to [0,100]. A panel
+// arriving right on its declared latency reads at or near 100%; the clamp
+// only guards against the measured elapsed (real wall-clock time, including
+// goroutine-scheduling jitter) overshooting the declared max by a few
+// milliseconds and pushing the bar past its own track.
+func barPct(elapsed, max time.Duration) int {
+	if max <= 0 {
+		return 0
+	}
+	pct := int(elapsed * 100 / max)
+	if pct > 100 {
+		pct = 100
+	}
+	return pct
+}
+
+// stream emits, per panel in completion order: a <template for="…-badge">
+// carrying its arrival ordinal and measured latency, then a
+// <template for="…"> carrying its body content and waterfall bar — flushing
+// after each pair so the browser applies it immediately. It blocks until
+// every panel has been sent, which is what keeps the response open.
 func (s *server) stream(ctx context.Context) gsx.Node {
 	return gsx.Func(func(ctx context.Context, w io.Writer) error {
+		start := time.Now()
+		max := s.maxLatency()
 		results := make(chan views.Panel, len(views.PanelNames()))
 		for _, name := range views.PanelNames() {
 			go func(name string) {
@@ -50,11 +83,22 @@ func (s *server) stream(ctx context.Context) gsx.Node {
 				}
 			}(name)
 		}
+		ordinal := 0
 		for range views.PanelNames() {
 			select {
 			case p := <-results:
-				patch := views.Patch(p.Name, views.PanelBody(p))
-				if err := patch.Render(ctx, w); err != nil {
+				ordinal++
+				elapsed := time.Since(start)
+				p.Ordinal = ordinal
+				p.ElapsedMS = int(elapsed.Milliseconds())
+				p.BarPct = barPct(elapsed, max)
+
+				badge := views.Patch(p.Name+"-badge", views.PanelBadge(p))
+				if err := badge.Render(ctx, w); err != nil {
+					return err
+				}
+				body := views.Patch(p.Name, views.PanelBody(p))
+				if err := body.Render(ctx, w); err != nil {
 					return err
 				}
 				if err := Flush().Render(ctx, w); err != nil {
