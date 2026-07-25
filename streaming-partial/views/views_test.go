@@ -3,7 +3,6 @@ package views
 import (
 	"bytes"
 	"context"
-	"io"
 	"strings"
 	"testing"
 
@@ -17,11 +16,6 @@ func render(t *testing.T, n gsx.Node) string {
 		t.Fatalf("render: %v", err)
 	}
 	return buf.String()
-}
-
-// noop stands in for the flush and stream nodes, which package main supplies.
-func noop() gsx.Node {
-	return gsx.Func(func(context.Context, io.Writer) error { return nil })
 }
 
 // PanelShell is asserted directly rather than through Page: Page reads the Vite
@@ -58,11 +52,41 @@ func TestPatchTargetsByName(t *testing.T) {
 	}
 }
 
-// A panel name is attacker-shaped input in the general case; gsx must reject a
-// name it cannot represent rather than emit broken markup.
+// A panel name is attacker-shaped input in the general case. `<template
+// for={x}>` is an ordinary quoted-attribute sink, so gsx entity-escapes a `"`
+// to `&#34;` rather than rejecting it — the name survives round-trip and
+// still matches its region. This is a genuinely surprising asymmetry worth
+// flagging: `<?start name={x}>` (the PI-name sink used by PanelShell) cannot
+// escape a `"` inside processing-instruction data, so the same string hitting
+// that sink is a render ERROR instead. Today every panel name is a static
+// literal so nothing dynamic reaches either sink, but a future change that
+// derives names from user input would land on one behavior or the other
+// depending on which tag it flows through.
 func TestPatchNameIsAttributeEscaped(t *testing.T) {
 	got := render(t, Patch(`a"b`, gsx.Raw("x")))
+	// Positive assertion: locks in that the quote is escaped in place, not
+	// silently stripped. A regression that strips the quote (rendering
+	// `for="ab"`) would corrupt the name — it would no longer match its
+	// region, with no error to signal the mismatch — and only a positive
+	// check on the exact escaped form catches that.
+	if !strings.Contains(got, `for="a&#34;b"`) {
+		t.Errorf("quote not escaped in place in %q", got)
+	}
 	if strings.Contains(got, `for="a"b"`) {
 		t.Errorf("unescaped quote in %q", got)
+	}
+}
+
+// A non-nil but empty Rows slice — what make([]Row, 0), a filter that empties
+// a slice, or a JSON-decoded `[]` all produce — must still fall through to the
+// value+badge shape, not render an empty, contentless table. This pins
+// PanelBody's discriminator to len(p.Rows) > 0, not p.Rows != nil.
+func TestPanelBodyEmptyRowsFallsThroughToValueShape(t *testing.T) {
+	got := render(t, PanelBody(Panel{Rows: []Row{}, Value: "$0", Note: "flat"}))
+	if strings.Contains(got, "<table") {
+		t.Errorf("empty Rows rendered a table instead of the value+badge shape in %q", got)
+	}
+	if !strings.Contains(got, "$0") {
+		t.Errorf("value+badge shape missing in %q", got)
 	}
 }

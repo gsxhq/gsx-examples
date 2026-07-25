@@ -32,7 +32,10 @@ type Row struct {
 }
 
 component PanelBody(p Panel) {
-	{ if p.Rows != nil {
+	// len, not nil-ness: a non-nil but empty Rows (make([]Row, 0), a filter
+	// that empties a slice, a JSON-decoded `[]`) must still fall through to
+	// the value+badge shape below, not render an empty, contentless table.
+	{ if len(p.Rows) > 0 {
 		<ui.Table>
 			<ui.TableBody>
 				{ for _, r := range p.Rows {
