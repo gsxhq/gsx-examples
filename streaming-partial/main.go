@@ -139,13 +139,6 @@ func main() {
 	s := newServer()
 	// The demo owns "/" — it is what this example exists to show.
 	mux.HandleFunc("/", s.handle)
-	// The scaffold's landing page, kept reachable so its styling stays live.
-	mux.HandleFunc("/scaffold", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		if err := Index("gsx + Vite").Render(r.Context(), w); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-	})
 
 	// v.Middleware injects *vite.Vite into each request's context so components
 	// read the asset bundle from ctx (no prop threading).

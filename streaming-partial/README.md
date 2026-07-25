@@ -36,8 +36,8 @@ Three gsx features combine here:
 
 ## Read these four files
 
-Six files are the demo; the rest is `gsx init` scaffolding, vendored components
-and config. In reading order:
+Six files are the demo; the rest is vendored components and build config. In
+reading order:
 
 | # | file | what to look for |
 | - | ---- | ---------------- |
@@ -50,8 +50,8 @@ Then, if you want the rest: [`views/panels.gsx`](views/panels.gsx) is
 presentation (the arrival badge and waterfall bar) and [`data.go`](data.go) is
 made-up panel content.
 
-Everything else you can ignore: `app.gsx` and `web/` are the stock scaffold
-landing page kept at `/scaffold`, `ui/` is vendored gsxui, and the rest is config.
+Everything else is support: `ui/` is vendored gsxui (yours to edit), `web/` is
+the Vite entry and stylesheets, and the rest is config.
 
 ## Run it
 
@@ -77,8 +77,6 @@ npm run dev
 That runs `gsx dev` with hot reload. It serves the app from the **Vite** port it
 prints, not `GO_PORT` — requesting the Go port directly means Vite's assets never
 load.
-
-`/scaffold` serves the stock `gsx init` landing page, kept for reference.
 
 ## Browser support
 
