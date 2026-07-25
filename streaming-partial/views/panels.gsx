@@ -15,3 +15,38 @@ component PanelShell(name string, title string) {
 		</ui.CardContent>
 	</ui.Card>
 }
+
+// Panel is one panel's rendered data.
+type Panel struct {
+	Name  string
+	Title string
+	Value string
+	Note  string
+	Rows  []Row
+}
+
+// Row is one line in a panel that shows a table.
+type Row struct {
+	Label string
+	Value string
+}
+
+component PanelBody(p Panel) {
+	{ if p.Rows != nil {
+		<ui.Table>
+			<ui.TableBody>
+				{ for _, r := range p.Rows {
+					<ui.TableRow>
+						<ui.TableCell>{r.Label}</ui.TableCell>
+						<ui.TableCell class="text-right">{r.Value}</ui.TableCell>
+					</ui.TableRow>
+				} }
+			</ui.TableBody>
+		</ui.Table>
+	} else {
+		<div class="flex items-baseline gap-3">
+			<span class="text-3xl font-semibold">{p.Value}</span>
+			<ui.Badge variant="secondary">{p.Note}</ui.Badge>
+		</div>
+	} }
+}

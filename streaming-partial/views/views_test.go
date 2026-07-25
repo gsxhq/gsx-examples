@@ -47,3 +47,22 @@ func TestPanelNamesAreTheDocumentOrder(t *testing.T) {
 		t.Fatalf("PanelNames() = %v, want %v — the slowest panel must be first", got, want)
 	}
 }
+
+func TestPatchTargetsByName(t *testing.T) {
+	got := render(t, Patch("orders", gsx.Raw("<b>x</b>")))
+	if !strings.Contains(got, `<template for="orders">`) {
+		t.Errorf("missing template for=orders in %q", got)
+	}
+	if !strings.Contains(got, "<b>x</b>") {
+		t.Errorf("patch body missing from %q", got)
+	}
+}
+
+// A panel name is attacker-shaped input in the general case; gsx must reject a
+// name it cannot represent rather than emit broken markup.
+func TestPatchNameIsAttributeEscaped(t *testing.T) {
+	got := render(t, Patch(`a"b`, gsx.Raw("x")))
+	if strings.Contains(got, `for="a"b"`) {
+		t.Errorf("unescaped quote in %q", got)
+	}
+}
