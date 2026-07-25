@@ -45,28 +45,41 @@ A standalone repo avoids both and can grow more examples later.
 
 ## Layout
 
+Bootstrapped with `gsx init` (the blessed app scaffold: `@gsxhq/vite-plugin-gsx`,
+`gsx dev` with HMR, and a `main.go` built on `github.com/gsxhq/vite` that embeds
+`dist/` and serves hashed assets through `v.StaticHandler()`), then layered with
+`gsxui init` + `gsxui add`.
+
 ```
 gsx-examples/
   README.md                       what lives here
   streaming-partial/
-    go.mod                        requires gsx >= v0.0.0-20260725075407-d72162ac2ac1 + gsxui
-    main.go                       http server; latencies injectable for tests
+    go.mod                        gsx >= v0.0.0-20260725075407-d72162ac2ac1, gsxui, gsxhq/vite
+    main.go                       from gsx init; extended with the streaming handler
     flush.go                      the <Flush/> node
-    gsx.toml  gsxui.json          written by `gsxui init`
+    data.go                       deterministic panel data
+    vite.config.ts                from gsx init; + @tailwindcss/vite
+    package.json                  from gsx init; + tailwindcss, tw-animate-css
+    gsx.toml  gsxui.json          from gsxui init
     ui/                           vendored by `gsxui add card skeleton table badge`
+    web/
+      main.js                     entry; imports the gsxui css + js
+      gsxui.css                   from gsxui init (Tailwind source)
     views/
       page.gsx                    document shell + three marker regions
-      panels.gsx                  real panel content
+      panels.gsx                  panel shell and real content
       patch.gsx                   <template for={name}> wrapper
-    static/
-      app.css                     committed Tailwind build
+    public/
       template-for-polyfill.js    vendored, 2.5 KB, Apache-2.0 (+ NOTICE)
-    package.json                  build-only (Tailwind); NOT needed to run
-    README.md                     `go run .`, restyling, the Chrome flag
+    dist/                         COMMITTED build output (see below)
+    README.md                     `go run .`, `npm run dev`, the Chrome flag
 ```
 
 Each example is its own Go module, so one example's dependencies never constrain
 another's.
+
+`public/` is committed and embedded (`//go:embed all:public`), which is why the
+polyfill lives there — it needs no build step at all.
 
 ## Render flow
 
@@ -94,8 +107,9 @@ would sit on its skeletons forever.
 
 The demo therefore ships
 [`template-for-polyfill`](https://github.com/GoogleChromeLabs/template-for-polyfill)
-(2.5 KB, Apache-2.0), vendored as a single file so the example needs no npm to
-run. Native path when the flag is on, polyfill otherwise.
+(2.5 KB, Apache-2.0), vendored as a single committed file under `public/`, so it
+needs no build step of its own. Native path when the flag is on, polyfill
+otherwise.
 
 **Why the polyfill works at all** — non-obvious and worth recording: it walks
 `SHOW_COMMENT | SHOW_PROCESSING_INSTRUCTION`. A browser without native PI
@@ -122,14 +136,24 @@ which is the right failure mode.
 ## CSS
 
 gsxui components carry Tailwind v4 utility classes and `gsxui.css` is
-`@import "tailwindcss"`, so styling requires a build. The built stylesheet is
-**committed** to `static/app.css` so `go run .` works with zero npm;
-`package.json` exists only to regenerate it.
+`@import "tailwindcss"`, so styling requires a build. It runs through Vite
+(`@tailwindcss/vite`) — the same way gsxui's own site does it — rather than a
+one-off CLI invocation.
 
-**Known risk:** the committed CSS can drift if gsxui components change. Mitigated
-by a documented rebuild command and a make target — a process, not a guarantee.
-Accepted deliberately: the demo is about streaming, and requiring npm to see it
-run would cost more than the drift risk.
+`gsx init` gitignores `/dist/*`, which would mean a fresh clone serves an
+unstyled page until someone runs npm. Since the demo's value is that a reader
+can watch it, **`dist/` is deliberately un-ignored and committed**. `go run .`
+then works straight from a clone; `npm run dev` remains available for the full
+HMR loop.
+
+**Known risks, both accepted:**
+
+- Committed build output can go stale if `web/` or the vendored components
+  change. Mitigated by a documented rebuild command, not a guarantee.
+- `*.x.go` stays gitignored, per the scaffold's convention for gsx *apps* — the
+  Vite plugin generates on the fly. So a clone needs `gsx generate` (or
+  `npm run dev`) before `go run .` compiles. The README must say so plainly;
+  this is the one thing a Go-only reader still has to run.
 
 ## Testing
 
