@@ -1,0 +1,10 @@
+/node_modules
+# dist/ is committed on purpose (not gitignored): this example's whole point
+# is that a fresh clone can `go run .` without npm. Rebuild it with
+# `npm run build` after touching web/ or ui/ — a stale dist/ is a silent
+# staleness bug, not a build error. Do not re-add it here.
+*.x.go
+.env
+# `go build ./...` at the module root writes a binary named after the
+# module directory (not caught by *.x.go or /node_modules above).
+/streaming-partial
