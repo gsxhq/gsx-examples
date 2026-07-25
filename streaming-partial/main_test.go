@@ -89,7 +89,7 @@ func TestStreamAssignsOrdinalsInArrivalOrderNotDocumentOrder(t *testing.T) {
 		"products": 12 * time.Millisecond,
 	}}
 	var buf bytes.Buffer
-	if err := s.stream(context.Background()).Render(context.Background(), &buf); err != nil {
+	if err := s.stream().Render(context.Background(), &buf); err != nil {
 		t.Fatalf("stream render: %v", err)
 	}
 	got := buf.String()
@@ -124,7 +124,7 @@ func TestStreamBarPctIsProportionalToDeclaredMax(t *testing.T) {
 		"products": 12 * time.Millisecond,
 	}}
 	var buf bytes.Buffer
-	if err := s.stream(context.Background()).Render(context.Background(), &buf); err != nil {
+	if err := s.stream().Render(context.Background(), &buf); err != nil {
 		t.Fatalf("stream render: %v", err)
 	}
 	got := buf.String()
