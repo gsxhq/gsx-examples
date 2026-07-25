@@ -21,38 +21,18 @@ component Page(flush gsx.Node, stream gsx.Node) {
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<title>gsx — streaming partial updates</title>
 			{{ v := vite.FromContext(ctx) }}
-			{ if v.Dev() {
-				<style>
-					html[data-loading] body {
-						visibility: hidden;
-					}
-
-					html[data-loading] * {
-						transition: none !important;
-					}
-				</style>
-				<script>
-					// Dev-only FOUC gate. Vite injects CSS via JS after the HTML
-					// loads, so hide the page until every module script has run
-					// (DOMContentLoaded) and one paint has landed (double rAF),
-					// then reveal. Prod ships real <link rel=stylesheet> tags
-					// below, so no gate is emitted there.
-					document.documentElement.dataset.loading = "true";
-					var unhide = function () {
-						document.documentElement.removeAttribute("data-loading");
-					};
-					var reveal = function () {
-						requestAnimationFrame(function () { requestAnimationFrame(unhide); });
-					};
-					if (document.readyState === "loading") {
-						document.addEventListener("DOMContentLoaded", reveal);
-					} else {
-						reveal();
-					}
-					// Safety net (rAF pauses in background tabs).
-					setTimeout(unhide, 5000);
-				</script>
-			} }
+			{/* The scaffold's Layout (app.gsx) ships a dev-only FOUC gate here —
+			    hide <body> via `html[data-loading]` until DOMContentLoaded, then
+			    reveal, because Vite injects CSS via JS in dev. This page
+			    deliberately OMITS it: DOMContentLoaded cannot fire until HTML
+			    parsing completes, which for a streamed response means the
+			    connection has closed — i.e. after all ~2.4s of panel latency, not
+			    before. The gate would hide the entire progressive fill and reveal
+			    everything at once, destroying the one thing this page exists to
+			    demonstrate. The trade-off is a brief unstyled flash in dev before
+			    Vite's injected CSS lands; that's a cosmetic blemish, not a defeat
+			    of the demo, so it's the right one here. Do not restore this
+			    block. */}
 			{{ assets := v.Entry("web/main.js") }}
 			{ for _, href := range assets.CSS {
 				<link rel="stylesheet" href={href}/>
