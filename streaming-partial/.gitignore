@@ -1,8 +1,11 @@
 /node_modules
-# dist/ is committed on purpose (not gitignored): this example's whole point
-# is that a fresh clone can `go run .` without npm. Rebuild it with
-# `npm run build` after touching web/ or ui/ — a stale dist/ is a silent
-# staleness bug, not a build error. Do not re-add it here.
+# dist/ is NOT committed. A `gsx dev` session edits sources live, so any
+# committed build output drifts out of parity within minutes — it happened twice.
+# `npm ci && npm run build` is a documented prerequisite instead (see README).
+# .gitkeep IS tracked: `//go:embed all:dist` fails to build if the directory
+# does not exist, so a fresh clone needs it present but empty.
+/dist/*
+!/dist/.gitkeep
 *.x.go
 .env
 # `go build ./...` at the module root writes a binary named after the
