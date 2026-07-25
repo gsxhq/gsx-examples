@@ -58,10 +58,7 @@ func barPct(elapsed, max time.Duration) int {
 		return 0
 	}
 	pct := int(elapsed * 100 / max)
-	if pct > 100 {
-		pct = 100
-	}
-	return pct
+	return min(pct, 100)
 }
 
 // stream emits, per panel in completion order: a <template for="…-badge">
