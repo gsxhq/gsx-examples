@@ -69,7 +69,7 @@ func barPct(elapsed, max time.Duration) int {
 // <template for="…"> carrying its body content and waterfall bar — flushing
 // after each pair so the browser applies it immediately. It blocks until
 // every panel has been sent, which is what keeps the response open.
-func (s *server) stream(ctx context.Context) gsx.Node {
+func (s *server) stream() gsx.Node {
 	return gsx.Func(func(ctx context.Context, w io.Writer) error {
 		start := time.Now()
 		max := s.maxLatency()
@@ -116,7 +116,7 @@ func (s *server) handle(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	// Proxies that buffer would defeat the whole demo; ask them not to.
 	w.Header().Set("X-Accel-Buffering", "no")
-	page := views.Page(Flush(), s.stream(r.Context()))
+	page := views.Page(Flush(), s.stream())
 	if err := page.Render(r.Context(), w); err != nil {
 		// The header is already sent by now, so an error cannot become a 500 —
 		// log it and let the truncated response speak for itself.
