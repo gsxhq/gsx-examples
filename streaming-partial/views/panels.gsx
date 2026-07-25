@@ -73,7 +73,7 @@ component PanelBadgePending() {
 // that disagreement is the entire point of the page.
 component PanelBadge(p Panel) {
 	<ui.Badge variant="outline" class="font-mono text-[oklch(0.72_0.13_195)] border-[oklch(0.72_0.13_195)]">
-		{ ordinalSuffix(p.Ordinal) } · { strconv.Itoa(p.ElapsedMS) }ms
+		{ ordinalSuffix(p.Ordinal) } · { p.ElapsedMS }ms
 	</ui.Badge>
 }
 
