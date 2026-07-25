@@ -3,3 +3,7 @@ node_modules/
 # SDD working memory (ledger, briefs, reports, review packages). Scratch, not
 # product — and `-A`-style adds must never sweep it into a commit.
 /.superpowers/
+
+# Design docs and implementation plans are local working notes, not shipped
+# product. Kept on disk, out of git.
+/docs/superpowers/
