@@ -34,6 +34,25 @@ Three gsx features combine here:
 - **[gsxui](https://github.com/gsxhq/gsxui)** — the cards, table, badge and
   skeletons, vendored with `gsxui add`
 
+## Read these four files
+
+Six files are the demo; the rest is `gsx init` scaffolding, vendored components
+and config. In reading order:
+
+| # | file | what to look for |
+| - | ---- | ---------------- |
+| 1 | **[`views/page.gsx`](views/page.gsx)** | the document shell. Three `<?start name=…> <ui.Skeleton/> <?end>` regions, then `{ flush }`, then `{ stream }`. This is where the holes are declared. |
+| 2 | **[`main.go`](main.go)** → `stream()` | the streaming node. One goroutine per panel; as each finishes it renders a patch and flushes. Note `latency` is inverted against page order — that is the whole demo. |
+| 3 | **[`views/patch.gsx`](views/patch.gsx)** | four lines. `<template for={name}>` — the thing that fills a hole declared earlier in the document. |
+| 4 | **[`flush.go`](flush.go)** | the `<Flush/>` node, ~15 lines. Pushes bytes without emitting markup. |
+
+Then, if you want the rest: [`views/panels.gsx`](views/panels.gsx) is
+presentation (the arrival badge and waterfall bar) and [`data.go`](data.go) is
+made-up panel content.
+
+Everything else you can ignore: `app.gsx` and `web/` are the stock scaffold
+landing page kept at `/scaffold`, `ui/` is vendored gsxui, and the rest is config.
+
 ## Run it
 
 ```sh
@@ -86,18 +105,6 @@ the document closes only once every region has been patched.
 
 Latencies live on the `server` struct rather than in a package constant, so tests
 inject fast ones instead of sleeping for 2.4 seconds.
-
-## Files
-
-| path                | what it is                                              |
-| ------------------- | ------------------------------------------------------- |
-| `views/page.gsx`    | document shell and the three marker regions             |
-| `views/panels.gsx`  | panel shell, real panel content, arrival badge          |
-| `views/patch.gsx`   | the `<template for=…>` wrapper                          |
-| `main.go`           | server, the streaming node, the inverted latencies      |
-| `data.go`           | the panel data                                          |
-| `flush.go`          | the `<Flush/>` node                                     |
-| `ui/`               | gsxui components, vendored — they are yours to edit     |
 
 ## Caveats
 
